@@ -1,78 +1,82 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-type FakeWalletClient = {
-  signMessage: (args: { message: string }) => Promise<string>;
-};
-
-type FakeFetchOptions = {
-  status?: number;
-  headers?: Record<string, string>;
-};
-
-test("payX402 throws error when endpoint returns non-402 status", async (t) => {
-  t.mock.method(globalThis, "fetch", async () => {
-    return {
-      ok: false,
-      status: 500,
-      headers: new Headers(),
-    } as unknown as Response;
-  });
+test("payX402 throws error when KEEPER_PRIVATE_KEY is not set", async () => {
+  const originalKey = process.env.KEEPER_PRIVATE_KEY;
+  delete process.env.KEEPER_PRIVATE_KEY;
 
   const { payX402 } = await import("./payment.js");
 
   await assert.rejects(
-    async () => await payX402("http://example.com/api", "0x123", "test-network", { signMessage: async () => "sig" } as unknown as FakeWalletClient),
-    { message: /non-402/i }
+    async () => await payX402("apidojo/tweet-scraper", { query: "ETH" }),
+    { message: /KEEPER_PRIVATE_KEY is required/ }
   );
+
+  process.env.KEEPER_PRIVATE_KEY = originalKey;
 });
 
-test("payX402 calls walletClient.signMessage with message containing payTo, price, and network when endpoint returns 402", async (t) => {
-  let signMessageArgs: { message: string } | null = null;
+test("payX402 uses injected signer when available", async (t) => {
+  process.env.KEEPER_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
 
-  t.mock.method(globalThis, "fetch", async () => {
-    return {
-      ok: false,
-      status: 402,
-      headers: new Headers({ "X-Payment": "signed:abc123" }),
-    } as unknown as Response;
-  });
+  const mockResult = [
+    { text: "test post", source: "twitter", created_at: "2024-01-01", likes: 100 }
+  ];
 
-  const walletClient: FakeWalletClient = {
-    signMessage: async (args: { message: string }) => {
-      signMessageArgs = args;
-      return "signature123";
+  let requestCount = 0;
+  t.mock.method(globalThis, "fetch", async (url: unknown, options: unknown) => {
+    const urlStr = url as string;
+    const opts = options as { headers?: Record<string, string> };
+    
+    requestCount++;
+    
+    if (requestCount === 1) {
+      return {
+        ok: false,
+        status: 402,
+        headers: new Headers({ "PAYMENT-REQUIRED": "eyJwcmllY2UiOiAiMC4wMSJ9" }),
+        text: async () => "Payment required",
+      } as unknown as Response;
     }
-  };
+    
+    return {
+      ok: true,
+      status: 200,
+      json: async () => mockResult,
+      text: async () => JSON.stringify(mockResult),
+    } as unknown as Response;
+  });
 
-  const { payX402 } = await import("./payment.js");
+  const { payX402, __setSignPaymentForTests } = await import("./payment.js");
 
-  await payX402("http://example.com/api", "0xabc", "test-network", walletClient);
+  __setSignPaymentForTests(async (header) => {
+    return "mock_signature_123";
+  });
 
-  assert.ok(signMessageArgs !== null, "signMessage should have been called");
-  const message = signMessageArgs!.message;
-  assert.ok(message.includes("0xabc"), "message should contain payTo address");
-  assert.ok(message.includes("test_network"), "message should contain network");
+  const result = await payX402("apidojo/tweet-scraper", { query: "ETH" });
+  
+  __setSignPaymentForTests(null);
+
+  assert.deepEqual(result, mockResult);
 });
 
-test("payX402 returns Headers object containing X-Payment key when endpoint returns 402", async (t) => {
+test("payX402 throws when mcpc is not available and no signer injected", async (t) => {
+  process.env.KEEPER_PRIVATE_KEY = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+
   t.mock.method(globalThis, "fetch", async () => {
     return {
       ok: false,
       status: 402,
-      headers: new Headers({ "X-Payment": "signature_xyz" }),
+      headers: new Headers({ "PAYMENT-REQUIRED": "eyJwcmllY2UiOiAiMC4wMSJ9" }),
+      text: async () => "Payment required",
     } as unknown as Response;
   });
 
-  const walletClient: FakeWalletClient = {
-    signMessage: async () => "signature123"
-  };
+  const { payX402, __setSignPaymentForTests } = await import("./payment.js");
 
-  const { payX402 } = await import("./payment.js");
+  __setSignPaymentForTests(null);
 
-  const result = await payX402("http://example.com/api", "0x123", "mainnet", walletClient);
-
-  assert.ok(result instanceof Headers, "result should be Headers object");
-  assert.ok(result.has("X-Payment"), "Headers should have X-Payment key");
-  assert.equal(result.get("X-Payment"), "signature_xyz");
+  await assert.rejects(
+    async () => await payX402("apidojo/tweet-scraper", { query: "ETH" }),
+    { message: /mcpc.*not found/i }
+  );
 });
