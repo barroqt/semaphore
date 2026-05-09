@@ -1,0 +1,15 @@
+[
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "requestId", "type": "uint256" },
+      { "internalType": "int256", "name": "score", "type": "int256" },
+      { "internalType": "uint256", "name": "volumeIndex", "type": "uint256" },
+      { "internalType": "uint8", "name": "signal", "type": "uint8" },
+      { "internalType": "bytes32", "name": "dataHash", "type": "bytes32" }
+    ],
+    "name": "fulfillSentimentUpdate",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
