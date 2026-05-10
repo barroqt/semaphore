@@ -130,7 +130,7 @@ export function Header({ topics }: Props) {
                   className="font-typewriter text-xs"
                   style={{ color: 'rgba(188, 149, 89, 0.5)', letterSpacing: '0.08em' }}
                 >
-                  On-Chain Narrative Verification Network — Est. 2024
+                  On-Chain Narrative Verification Network
                 </p>
               </div>
             </div>

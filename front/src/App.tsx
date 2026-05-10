@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useAccount } from 'wagmi';
 import type { FilterState, TopicSignal } from './types';
 import { mockTopics, mockTransactions } from './mockData';
 import { Header } from './components/Header';
@@ -56,18 +57,20 @@ function applyFilters(topics: TopicSignal[], filters: FilterState): TopicSignal[
 type Tab = 'active' | 'transactions';
 
 export default function App() {
+  const { isConnected } = useAccount();
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
   const [topics, setTopics] = useState<TopicSignal[]>([]);
   const [tab, setTab] = useState<Tab>('active');
 
   useEffect(() => {
+    if (!isConnected) return;
     const t = setTimeout(() => {
       setTopics(mockTopics);
       setLoading(false);
     }, 900);
     return () => clearTimeout(t);
-  }, []);
+  }, [isConnected]);
 
   const filtered = useMemo(() => applyFilters(topics, filters), [topics, filters]);
 
@@ -83,9 +86,27 @@ export default function App() {
         }}
       />
 
-      <Header topics={topics.length ? topics : mockTopics} />
+      <Header topics={isConnected && topics.length ? topics : mockTopics} />
 
       <main className="relative max-w-7xl mx-auto px-4 py-6">
+        {!isConnected ? (
+          <div
+            className="rounded-sm p-12 text-center"
+            style={{
+              background: 'linear-gradient(135deg, #2a1e12 0%, #1e1510 100%)',
+              border: '1px solid rgba(94, 61, 27, 0.3)',
+            }}
+          >
+            <div className="text-3xl mb-4">🔗</div>
+            <h2 className="font-playfair font-bold text-xl mb-2" style={{ color: '#f0d9ad' }}>
+              Wallet Not Connected
+            </h2>
+            <p className="font-typewriter text-sm" style={{ color: 'rgba(188, 149, 89, 0.5)' }}>
+              Connect your wallet to access the Semaphore Intelligence Dispatch
+            </p>
+          </div>
+        ) : (
+        <>
         <div className="flex items-center gap-3 mb-6">
           <div className="h-px flex-1" style={{ background: 'linear-gradient(90deg, rgba(94, 61, 27, 0.6), transparent)' }} />
           <div
@@ -154,6 +175,8 @@ export default function App() {
             ——  Data is simulated for demonstration purposes  ——
           </p>
         </div>
+        </>
+        )}
       </main>
     </div>
   );
