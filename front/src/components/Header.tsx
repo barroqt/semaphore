@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Activity, Wifi, Clock } from 'lucide-react';
 import type { TopicSignal } from '../types';
 import { systemStatus } from '../mockData';
+import { WalletButton } from './WalletButton';
 
 interface Props {
   topics: TopicSignal[];
@@ -248,6 +249,11 @@ export function Header({ topics }: Props) {
 
       {/* Ticker tape */}
       <TickerTape items={systemStatus.tickerItems} />
+
+      {/* Web3 Connect */}
+      <div className="flex justify-center mt-3">
+        <WalletButton />
+      </div>
     </header>
   );
 }
