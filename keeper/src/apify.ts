@@ -6,15 +6,7 @@ const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 const sourceToActor: Record<string, string> = {
   twitter: "apidojo/tweet-scraper",
   reddit: "trudax/reddit-scraper",
-  news: "apify/google-news-scraper",
-  google_news: "apify/google-news-scraper",
-};
-
-const sourceToClientKey: Record<string, string> = {
-  twitter: "twitter_actor",
-  reddit: "reddit_actor",
-  news: "news_actor",
-  google_news: "news_actor",
+  news: "apify/google-search-scraper",
 };
 
 const assetIdToLabel: Record<string, string> = {

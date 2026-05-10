@@ -57,7 +57,7 @@ test("runActors calls one Actor per valid source", async () => {
   const { runActors, __setApifyClientFactoryForTests } = await import("./apify.js");
   __setApifyClientFactoryForTests(() => fakeClient);
 
-  await runActors("ETH", ["twitter", "reddit", "google_news"]);
+  await runActors("ETH", ["twitter", "reddit", "news"]);
 
   assert.equal(actorIds.length, 3);
 });

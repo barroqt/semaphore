@@ -10,7 +10,11 @@ import { fulfill } from "./fulfiller.js";
 
 const BASE_RPC = process.env.BASE_RPC || "https://mainnet.base.org";
 const ORACLE_ADDRESS = process.env.ORACLE_ADDRESS;
-const KEEPER_PRIVATE_KEY = process.env.KEEPER_PRIVATE_KEY;
+const KEEPER_PRIVATE_KEY = (() => {
+  const key = process.env.KEEPER_PRIVATE_KEY;
+  if (!key) return null;
+  return key.startsWith("0x") ? key : `0x${key}`;
+})();
 const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
 
 const USE_X402 = !!APIFY_API_TOKEN && APIFY_API_TOKEN.startsWith("apify_api_");
