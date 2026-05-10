@@ -31,7 +31,7 @@ export function __setWalletClientFactoryForTests(factory: () => ReturnType<typeo
 }
 
 export async function payX402(
-  actorName: string,
+  actorId: string,
   input: Record<string, unknown>
 ): Promise<unknown> {
   const privateKey = process.env.KEEPER_PRIVATE_KEY;
@@ -39,8 +39,8 @@ export async function payX402(
     throw new Error("KEEPER_PRIVATE_KEY is required for X402 payments");
   }
 
-  const actorPath = actorName.replace("/", "~");
-  const endpoint = `https://api.apify.com/v2/acts/${actorPath}/run-sync-get-dataset-items`;
+  const privateKeyWithPrefix = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+  const endpoint = `https://api.apify.com/v2/acts/${actorId}/run-sync-get-dataset-items`;
 
   console.log(`[x402] Initiating payment for actor: ${actorName}`);
 
