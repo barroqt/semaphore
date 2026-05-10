@@ -1,10 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { FilterState, TopicSignal } from './types';
-import { mockTopics } from './mockData';
+import { mockTopics, mockTransactions } from './mockData';
 import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { TopicCard } from './components/TopicCard';
 import { MarketOverview } from './components/MarketOverview';
+import { TransactionHistory } from './components/TransactionHistory';
 
 const DEFAULT_FILTERS: FilterState = {
   category: 'All',
@@ -52,10 +53,13 @@ function applyFilters(topics: TopicSignal[], filters: FilterState): TopicSignal[
   return result;
 }
 
+type Tab = 'active' | 'transactions';
+
 export default function App() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [loading, setLoading] = useState(true);
   const [topics, setTopics] = useState<TopicSignal[]>([]);
+  const [tab, setTab] = useState<Tab>('active');
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -98,16 +102,35 @@ export default function App() {
           <div className="h-px flex-1" style={{ background: 'linear-gradient(270deg, rgba(94, 61, 27, 0.6), transparent)' }} />
         </div>
 
-        {!loading && <MarketOverview topics={topics} />}
+        <div className="flex gap-1 mb-6">
+          {(['active', 'transactions'] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className="px-4 py-1.5 rounded-sm font-typewriter text-xs uppercase tracking-widest transition-all"
+              style={{
+                background: tab === t ? 'rgba(94, 61, 27, 0.3)' : 'transparent',
+                border: '1px solid rgba(94, 61, 27, 0.4)',
+                color: tab === t ? '#f0d9ad' : 'rgba(188, 149, 89, 0.5)',
+              }}
+            >
+              {t === 'active' ? 'Active Signals' : 'x402 Transactions'}
+            </button>
+          ))}
+        </div>
 
-        <FilterBar
-          filters={filters}
-          onChange={setFilters}
-          totalCount={topics.length}
-          filteredCount={filtered.length}
-        />
+        {tab === 'active' && !loading && <MarketOverview topics={topics} />}
 
-        {loading ? (
+        {tab === 'active' && (
+          <FilterBar
+            filters={filters}
+            onChange={setFilters}
+            totalCount={topics.length}
+            filteredCount={filtered.length}
+          />
+        )}
+
+        {tab === 'active' && (loading ? (
           <LoadingSkeleton />
         ) : filtered.length === 0 ? (
           <EmptyState />
@@ -117,6 +140,10 @@ export default function App() {
               <TopicCard key={topic.id} topic={topic} index={i} />
             ))}
           </div>
+        ))}
+
+        {tab === 'transactions' && (
+          <TransactionHistory transactions={mockTransactions} />
         )}
 
         <div className="mt-12 pt-6 border-t text-center" style={{ borderColor: 'rgba(94, 61, 27, 0.3)' }}>

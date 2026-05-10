@@ -37,6 +37,18 @@ export interface TopicSignal {
   transmissionId: string;
 }
 
+export interface X402Transaction {
+  hash: string;
+  timestamp: number;
+  amount: string;
+  token: string;
+  usdValue: number;
+  status: 'confirmed' | 'pending' | 'failed';
+  endpoint: string;
+  sender: string;
+  receiver: string;
+}
+
 export interface FilterState {
   category: TopicCategory | 'All';
   label: SentimentLabel | 'All';
