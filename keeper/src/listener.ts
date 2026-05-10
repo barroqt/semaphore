@@ -1,8 +1,7 @@
-import { createPublicClient, http, type PublicClient } from "viem";
-import semOracleAbi from "../../contracts/out/SemaphoreOracle.sol/SemaphoreOracle.json" with { type: "json" };
+import { type PublicClient, type Abi } from "viem";
+import semOracleJson from "../../contracts/out/SemaphoreOracle.sol/SemaphoreOracle.json" with { type: "json" };
 
-const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC;
-const ORACLE_ADDRESS = process.env.ORACLE_ADDRESS;
+const semOracleAbi = (semOracleJson as { abi: Abi }).abi;
 
 export type SentimentRequest = {
   requestId: string;
@@ -11,26 +10,19 @@ export type SentimentRequest = {
   sources: string[];
 };
 
-function getPublicClient(): PublicClient {
-  if (!BASE_SEPOLIA_RPC) {
-    throw new Error("BASE_SEPOLIA_RPC environment variable not set");
+async function fetchSourcesFromContract(publicClient: PublicClient, oracleAddress: string, requestId: string): Promise<string[]> {
+  try {
+    const request = await publicClient.readContract({
+      address: oracleAddress as `0x${string}`,
+      abi: semOracleAbi,
+      functionName: "requests",
+      args: [requestId as `0x${string}`],
+    }) as { sources: string[] };
+    return request.sources || [];
+  } catch (e) {
+    console.error("Failed to fetch sources:", e);
+    return ["twitter", "reddit", "news"];
   }
-  return createPublicClient({
-    chain: {
-      id: 84532,
-      name: "Base Sepolia",
-      network: "base-sepolia",
-      nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-      rpcUrls: { default: { http: [BASE_SEPOLIA_RPC] } },
-    },
-    transport: http(),
-  });
-}
-
-let publicClientFactory: () => PublicClient = getPublicClient;
-
-export function __setPublicClientFactoryForTests(factory: () => PublicClient): void {
-  publicClientFactory = factory;
 }
 
 export function startListener(
@@ -38,29 +30,43 @@ export function startListener(
   oracleAddress: string,
   onRequest: (req: SentimentRequest) => Promise<void>
 ): () => void {
+  const processLogs = async (logs: typeof import("viem").Log[]) => {
+    for (const log of logs) {
+      const args = log.args as unknown as {
+        requestId: string;
+        assetId: string;
+        requester: string;
+      };
+      try {
+        const sources = await fetchSourcesFromContract(publicClient, oracleAddress, args.requestId);
+        Promise.resolve(onRequest({
+          requestId: args.requestId,
+          assetId: args.assetId,
+          requester: args.requester,
+          sources,
+        })).catch(console.error);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
+  // Fetch recent events (last 10000 blocks)
+  publicClient.getBlockNumber().then((blockNumber) => {
+    const fromBlock = blockNumber - BigInt(10000);
+    return publicClient.getLogs({
+      address: oracleAddress as `0x${string}`,
+      event: semOracleAbi.find((x) => x.type === "event" && x.name === "SentimentUpdateRequested") as import("viem").AbiEvent,
+      fromBlock,
+    });
+  }).then(processLogs).catch((e) => console.error("Failed to fetch historical events:", e));
+
+  // Watch for new events
   const unwatch = publicClient.watchContractEvent({
-    address: oracleAddress,
+    address: oracleAddress as `0x${string}`,
     abi: semOracleAbi,
     eventName: "SentimentUpdateRequested",
-    onLogs: (logs) => {
-      for (const log of logs) {
-        const args = log.args as unknown as {
-          requestId: string;
-          assetId: string;
-          requester: string;
-        };
-        try {
-          Promise.resolve(onRequest({
-            requestId: args.requestId,
-            assetId: args.assetId,
-            requester: args.requester,
-            sources: [],
-          })).catch(console.error);
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    },
+    onLogs: processLogs,
   });
 
   return unwatch;
