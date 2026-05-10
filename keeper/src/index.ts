@@ -8,7 +8,7 @@ import { pinRawData } from "./ipfs.js";
 import { payX402 } from "./payment.js";
 import { fulfill } from "./fulfiller.js";
 
-const BASE_SEPOLIA_RPC = process.env.BASE_SEPOLIA_RPC || "https://sepolia.base.org";
+const BASE_RPC = process.env.BASE_RPC || "https://mainnet.base.org";
 const ORACLE_ADDRESS = process.env.ORACLE_ADDRESS;
 const KEEPER_PRIVATE_KEY = process.env.KEEPER_PRIVATE_KEY;
 const APIFY_API_TOKEN = process.env.APIFY_API_TOKEN;
@@ -22,23 +22,23 @@ if (!KEEPER_PRIVATE_KEY) {
   throw new Error("KEEPER_PRIVATE_KEY is required");
 }
 
-const BASE_SEPOLIA_CHAIN = {
-  id: 84532,
-  name: "Base Sepolia",
-  network: "base-sepolia",
+const BASE_CHAIN = {
+  id: 8453,
+  name: "Base",
+  network: "base",
   nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
-  rpcUrls: { default: { http: [BASE_SEPOLIA_RPC] } },
+  rpcUrls: { default: { http: [BASE_RPC] } },
 };
 
 const publicClient = createPublicClient({
-  chain: BASE_SEPOLIA_CHAIN,
+  chain: BASE_CHAIN,
   transport: http(),
 });
 
 const account = privateKeyToAccount(KEEPER_PRIVATE_KEY as `0x${string}`);
 const walletClient = createWalletClient({
   account,
-  chain: BASE_SEPOLIA_CHAIN,
+  chain: BASE_CHAIN,
   transport: http(),
 });
 
