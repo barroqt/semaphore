@@ -66,9 +66,14 @@ function normalizeX402Post(item: unknown): RawPost {
 
 async function fetchWithX402(actorId: string, label: string): Promise<RawPost[]> {
   console.log(`[x402] Fetching from ${actorId}...`);
-  const result = await payX402(actorId, { query: label, limit: 100 });
-  const items = result as unknown[];
-  return items.map(normalizeX402Post);
+  try {
+    const result = await payX402(actorId, { query: label, limit: 100 });
+    const items = result as unknown[];
+    return items.map(normalizeX402Post);
+  } catch (error) {
+    console.log(`[x402] Failed for ${actorId}, using fallback:`, error instanceof Error ? error.message : error);
+    return [];
+  }
 }
 
 async function fetchWithoutX402(assetId: string, sources: string[]): Promise<RawPost[]> {
@@ -96,7 +101,8 @@ async function handleRequest(req: SentimentRequest): Promise<void> {
     console.log(`[keeper:${requestId}] fetched ${posts.length} posts`);
 
     if (posts.length === 0) {
-      console.log(`[keeper:${requestId}] no posts fetched, using fallback mock data`);
+      console.log(`[keeper:${requestId}] no posts have been fetched`);
+      return;
     }
 
     console.log(`[keeper:${requestId}] step 2: scoring posts`);
@@ -104,11 +110,17 @@ async function handleRequest(req: SentimentRequest): Promise<void> {
     console.log(`[keeper:${requestId}] score: ${result.score.toFixed(4)}, signal: ${result.signal}`);
 
     console.log(`[keeper:${requestId}] step 3: pinning to IPFS`);
-    const dataHash = await pinRawData(posts, label);
-    console.log(`[keeper:${requestId}] data hash: ${dataHash}`);
+    let dataHash: `0x${string}`;
+    try {
+      dataHash = await pinRawData(posts, label);
+      console.log(`[keeper:${requestId}] data hash: ${dataHash}`);
+    } catch (e) {
+      console.log(`[keeper:${requestId}] IPFS failed, using fallback hash`);
+      dataHash = "0x" + "0".repeat(64);
+    }
 
     console.log(`[keeper:${requestId}] step 4: fulfilling oracle`);
-    const txHash = await fulfill(requestId, result.score, result.volumeIndex, result.signal, walletClient);
+    const txHash = await fulfill(requestId, result.score, result.volumeIndex, result.signal, dataHash, walletClient);
     console.log(`[keeper:${requestId}] fulfilled, tx: ${txHash}`);
   } catch (error) {
     console.error(`[keeper:${requestId}] error:`, error);
